@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Calendar 2</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; }
+  .page { max-width: 1040px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* Top bar */
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px; }
+  .topbar h1 { font-size: 20px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .topbar h1 i { color: #5344C0; }
+  .tabs { display: flex; gap: 4px; background: #ebebea; border-radius: 10px; padding: 3px; }
+  .tab-btn { border: none; background: none; border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 500; cursor: pointer; color: #777; display: flex; align-items: center; gap: 5px; transition: background 0.15s, color 0.15s; }
+  .tab-btn.active { background: #fff; color: #1a1a1a; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .tab-btn i { font-size: 15px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ── Calendar ── */
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+  .nav-btn { background: #fff; border: 0.5px solid #ccc; border-radius: 8px; padding: 7px 14px; cursor: pointer; color: #1a1a1a; font-size: 14px; display: flex; align-items: center; gap: 4px; transition: background 0.15s; }
+  .nav-btn:hover { background: #f0f0ee; }
+  .month-title { font-size: 18px; font-weight: 500; }
+  .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
+  .weekday { text-align: center; font-size: 12px; color: #999; padding: 4px 0; letter-spacing: 0.05em; }
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .day-cell { aspect-ratio: 3/4; border: 0.5px solid #ddd; border-radius: 8px; cursor: pointer; overflow: hidden; position: relative; background: #fff; transition: border-color 0.15s; }
+  .day-cell:hover { border-color: #aaa; }
+  .day-cell.empty { border: none; background: none; cursor: default; }
+  .day-cell.today { border: 1.5px solid #5344C0; }
+  .day-cell.has-video { background: #f7f6ff; }
+  .day-number { position: absolute; top: 6px; left: 8px; font-size: 13px; font-weight: 500; color: #1a1a1a; z-index: 2; line-height: 1; text-shadow: 0 1px 3px rgba(255,255,255,0.85); }
+  .day-cell.today .day-number { color: #5344C0; }
+  .thumb-wrap { position: absolute; inset: 0; }
+  .thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb-fade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.48) 100%); }
+  .thumb-icon { position: absolute; bottom: 6px; right: 6px; width: 22px; height: 22px; background: rgba(255,255,255,0.92); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #333; z-index: 3; }
+  .add-icon { position: absolute; bottom: 6px; right: 6px; font-size: 16px; color: #bbb; }
+
+  /* ── Instagram grid view ── */
+  .ig-month-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+  .ig-month-nav { display: flex; align-items: center; gap: 8px; }
+  .ig-month-label { font-size: 16px; font-weight: 500; }
+  .ig-nav-btn { background: #fff; border: 0.5px solid #ccc; border-radius: 6px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #555; font-size: 14px; }
+  .ig-nav-btn:hover { background: #f0f0ee; }
+
+  /* 3 account columns */
+  .accounts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 700px) { .accounts-grid { grid-template-columns: 1fr; } }
+
+  .account-col { background: #fff; border-radius: 14px; border: 0.5px solid #e0e0e0; overflow: hidden; }
+
+  /* Account header */
+  .account-header { padding: 12px 14px 10px; border-bottom: 0.5px solid #eee; }
+  .account-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+  .account-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: #fff; flex-shrink: 0; }
+  .account-info { flex: 1; margin-left: 10px; }
+  .account-name { font-size: 14px; font-weight: 600; color: #1a1a1a; line-height: 1.2; }
+  .account-handle { font-size: 12px; color: #aaa; }
+  .account-settings-btn { background: none; border: none; cursor: pointer; color: #bbb; font-size: 16px; padding: 2px; }
+  .account-settings-btn:hover { color: #555; }
+  .account-stats { display: flex; gap: 12px; margin-top: 8px; }
+  .account-stat { font-size: 12px; color: #888; }
+  .account-stat strong { color: #1a1a1a; font-weight: 600; }
+
+  /* Mini IG grid inside each column */
+  .mini-ig-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; }
+  .mini-cell { aspect-ratio: 3/4; position: relative; overflow: hidden; background: #f0f0ee; cursor: pointer; }
+  .mini-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .mini-cell:hover .mini-hover { opacity: 1; }
+  .mini-hover { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
+  .mini-hover i { font-size: 20px; color: #fff; }
+  .mini-date { position: absolute; bottom: 3px; left: 4px; font-size: 10px; color: #fff; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.8); z-index: 2; }
+  .mini-no-cover { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #1e1e1e; }
+  .mini-no-cover i { font-size: 18px; color: #555; }
+  .mini-add { aspect-ratio: 3/4; background: #f9f9f7; border: 1.5px dashed #ddd; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; transition: background 0.15s; }
+  .mini-add:hover { background: #f0f0ee; }
+  .mini-add i { font-size: 16px; color: #ccc; }
+  .mini-add span { font-size: 10px; color: #ccc; }
+  .mini-empty-state { padding: 24px 12px; text-align: center; color: #ccc; font-size: 12px; }
+  .mini-empty-state i { font-size: 28px; display: block; margin-bottom: 6px; }
+
+  /* Account settings modal */
+  .acct-modal { background: #fff; border-radius: 16px; width: 100%; max-width: 420px; border: 0.5px solid #ddd; overflow: hidden; }
+  .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; }
+  .swatch.selected { border-color: #1a1a1a; }
+
+  /* ── Modal ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+  .modal { background: #fff; border-radius: 16px; width: 100%; max-width: 560px; border: 0.5px solid #ddd; overflow: hidden; max-height: 92vh; overflow-y: auto; }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 0.5px solid #eee; position: sticky; top: 0; background: #fff; z-index: 1; }
+  .modal-title { font-size: 16px; font-weight: 500; }
+  .close-btn { background: none; border: none; cursor: pointer; color: #888; font-size: 20px; line-height: 1; padding: 2px; }
+  .close-btn:hover { color: #333; }
+  .modal-body { padding: 1.25rem; }
+  .cover-box { width: 100%; aspect-ratio: 3/4; border-radius: 10px; overflow: hidden; background: #111; position: relative; margin-bottom: 1rem; }
+  .cover-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cover-placeholder { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #555; }
+  .cover-placeholder i { font-size: 36px; }
+  .cover-placeholder span { font-size: 13px; }
+  .play-btn-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.22); cursor: pointer; transition: background 0.15s; }
+  .play-btn-overlay:hover { background: rgba(0,0,0,0.38); }
+  .play-circle { width: 58px; height: 58px; background: rgba(255,255,255,0.95); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #222; }
+  .cover-upload-area { border: 1.5px dashed #ccc; border-radius: 10px; aspect-ratio: 3/4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; position: relative; overflow: hidden; background: #fafafa; transition: border-color 0.15s, background 0.15s; margin-bottom: 1rem; }
+  .cover-upload-area:hover { border-color: #5344C0; background: #f5f4ff; }
+  .cover-upload-area img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .cover-upload-area .upload-label { display: flex; flex-direction: column; align-items: center; gap: 6px; color: #888; font-size: 13px; z-index: 1; pointer-events: none; }
+  .cover-upload-area .upload-label i { font-size: 28px; }
+  .cover-upload-area.has-img .upload-label { background: rgba(0,0,0,0.45); color: #fff; width: 100%; height: 100%; justify-content: center; opacity: 0; transition: opacity 0.15s; }
+  .cover-upload-area.has-img:hover .upload-label { opacity: 1; }
+  #cover-file-input { display: none; }
+  .cover-url-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .cover-url-row input { flex: 1; }
+  .cover-url-row button { white-space: nowrap; background: none; border: 0.5px solid #ccc; border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; color: #444; }
+  .cover-url-row button:hover { background: #f0f0ee; }
+  .field-label { font-size: 13px; color: #666; margin-bottom: 6px; display: block; }
+  .section-label { font-size: 12px; font-weight: 500; color: #999; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; display: block; }
+  .field-group { margin-bottom: 1rem; }
+  input[type=text], textarea { width: 100%; border: 0.5px solid #ccc; border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; color: #1a1a1a; background: #fff; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+  input[type=text]:focus, textarea:focus { border-color: #5344C0; box-shadow: 0 0 0 3px rgba(83,74,192,0.12); }
+  textarea { resize: vertical; min-height: 68px; }
+  .modal-footer { padding: 1rem 1.25rem; border-top: 0.5px solid #eee; display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+  .btn-primary { background: #5344C0; color: #fff; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+  .btn-primary:hover { background: #4338a8; }
+  .btn-secondary { background: none; border: 0.5px solid #ccc; border-radius: 8px; padding: 8px 16px; font-size: 14px; cursor: pointer; color: #1a1a1a; }
+  .btn-secondary:hover { background: #f5f5f3; }
+  .btn-danger { background: none; border: 0.5px solid #eee; border-radius: 8px; padding: 8px 16px; font-size: 14px; cursor: pointer; color: #c0392b; margin-right: auto; }
+  .btn-danger:hover { background: #fff5f5; }
+  .view-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.4rem; }
+  .view-title { font-size: 16px; font-weight: 500; }
+  .edit-link { font-size: 13px; color: #5344C0; cursor: pointer; background: none; border: none; display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+  .caption-display { font-size: 14px; color: #666; line-height: 1.6; font-style: italic; margin-bottom: 0.75rem; }
+  .video-url-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #5344C0; background: #f0eeff; border-radius: 6px; padding: 4px 10px; text-decoration: none; max-width: 100%; overflow: hidden; }
+  .video-url-chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .divider { border: none; border-top: 0.5px solid #eee; margin: 1rem 0; }
+  .acct-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; border-radius: 20px; padding: 3px 10px; font-weight: 500; margin-bottom: 10px; }
+
+  .backup-btn { background: #fff; border: 0.5px solid #ccc; border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 500; cursor: pointer; color: #555; display: flex; align-items: center; gap: 5px; transition: background 0.15s; }
+  .backup-btn:hover { background: #f0f0ee; }
+  .backup-btn i { font-size: 14px; }
+
+  @media (max-width: 600px) {
+    .page { padding: 1rem; }
+    .day-number { font-size: 11px; top: 4px; left: 5px; }
+    .add-icon, .thumb-icon { bottom: 4px; right: 4px; font-size: 13px; }
+    .thumb-icon { width: 18px; height: 18px; font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <h1><i class="ti ti-calendar-event"></i> Video Calendar</h1>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <button class="backup-btn" onclick="exportData()" title="Backup all data"><i class="ti ti-download"></i> Backup</button>
+      <button class="backup-btn" onclick="document.getElementById('import-file').click()" title="Restore from backup"><i class="ti ti-upload"></i> Restore</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-cal" onclick="switchTab('calendar')"><i class="ti ti-calendar"></i> Calendar</button>
+        <button class="tab-btn" id="tab-ig" onclick="switchTab('instagram')"><i class="ti ti-brand-instagram"></i> Grid</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calendar view -->
+  <div class="view active" id="view-calendar">
+    <div class="cal-header">
+      <button class="nav-btn" onclick="changeMonth(-1)"><i class="ti ti-chevron-left"></i> Prev</button>
+      <span class="month-title" id="month-title"></span>
+      <button class="nav-btn" onclick="changeMonth(1)">Next <i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="weekdays">
+      <div class="weekday">Sun</div><div class="weekday">Mon</div><div class="weekday">Tue</div>
+      <div class="weekday">Wed</div><div class="weekday">Thu</div><div class="weekday">Fri</div><div class="weekday">Sat</div>
+    </div>
+    <div class="calendar-grid" id="calendar-grid"></div>
+  </div>
+
+  <!-- Instagram grid view -->
+  <div class="view" id="view-instagram">
+
+    <div class="accounts-grid" id="accounts-grid"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" style="display:none" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal-box"></div>
+</div>
+<input type="file" id="cover-file-input" accept="image/*" onchange="handleCoverFile(event)">
+
+<script>
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const COLORS = ['#E8534A','#E8944A','#D4A017','#4CAF7D','#2196A8','#5344C0','#9C27B0','#E91E8C','#607D8B','#3E3E3E'];
+const COLOR_NAMES = ['Red','Orange','Gold','Green','Teal','Purple','Violet','Pink','Slate','Charcoal'];
+
+const now = new Date();
+let curYear = now.getFullYear();
+let curMonth = now.getMonth();
+let currentTab = 'calendar';
+
+// State
+let state = { accounts: [], videos: {} };
+try {
+  const saved = localStorage.getItem('vc-state-v3');
+  if (saved) state = JSON.parse(saved);
+} catch(e) {}
+
+// Default 3 accounts
+if (!state.accounts || state.accounts.length === 0) {
+  state.accounts = [
+    { id: 'acct4', name: 'Restaurant 4', handle: '@restaurant4', color: '#E8944A' },
+    { id: 'acct5', name: 'Restaurant 5', handle: '@restaurant5', color: '#2196A8' },
+    { id: 'acct6', name: 'Restaurant 6', handle: '@restaurant6', color: '#9C27B0' },
+  ];
+}
+if (!state.videos) state.videos = {};
+
+function save() {
+  try { localStorage.setItem('vc-state-v3', JSON.stringify(state)); } catch(e) {
+    alert('Storage full — try removing some cover images.');
+  }
+}
+
+function key(acctId, y, m, d) { return `${acctId}::${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function parseKey(k) { const [acctId, date] = k.split('::'); return { acctId, date }; }
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('view-calendar').classList.toggle('active', tab === 'calendar');
+  document.getElementById('view-instagram').classList.toggle('active', tab === 'instagram');
+  document.getElementById('tab-cal').classList.toggle('active', tab === 'calendar');
+  document.getElementById('tab-ig').classList.toggle('active', tab === 'instagram');
+  if (tab === 'instagram') renderIG();
+}
+
+function changeMonth(dir) {
+  curMonth += dir;
+  if (curMonth > 11) { curMonth = 0; curYear++; }
+  if (curMonth < 0) { curMonth = 11; curYear--; }
+  render();
+  if (currentTab === 'instagram') renderIG();
+}
+
+function getYoutubeId(url) {
+  if (!url) return null;
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([^&?\/\s]{11})/);
+  return m ? m[1] : null;
+}
+function getCover(v) {
+  if (!v) return null;
+  if (v.coverBase64) return v.coverBase64;
+  if (v.coverUrl) return v.coverUrl;
+  const yt = getYoutubeId(v.url);
+  if (yt) return `https://img.youtube.com/vi/${yt}/mqdefault.jpg`;
+  return null;
+}
+
+/* ── Calendar (shows all accounts combined) ── */
+function render() {
+  document.getElementById('month-title').textContent = `${MONTHS[curMonth]} ${curYear}`;
+  const grid = document.getElementById('calendar-grid');
+  const firstDay = new Date(curYear, curMonth, 1).getDay();
+  const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
+  const isCurMon = curYear === now.getFullYear() && curMonth === now.getMonth();
+
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += `<div class="day-cell empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday = isCurMon && d === now.getDate();
+    // collect which accounts have a video on this day
+    const acctVideos = state.accounts.map(a => {
+      const k = key(a.id, curYear, curMonth, d);
+      return state.videos[k] ? { acct: a, v: state.videos[k], k } : null;
+    }).filter(Boolean);
+
+    const firstEntry = acctVideos[0];
+    const cover = firstEntry ? getCover(firstEntry.v) : null;
+    let cls = 'day-cell' + (isToday ? ' today' : '') + (acctVideos.length ? ' has-video' : '');
+    html += `<div class="${cls}" onclick="openCalDay(${d})" title="${acctVideos.length ? acctVideos.map(e=>e.acct.name).join(', ') : 'Add video'}">`;
+    html += `<span class="day-number">${d}</span>`;
+    if (acctVideos.length && cover) {
+      html += `<div class="thumb-wrap"><img class="thumb-img" src="${cover}" alt="" onerror="this.style.display='none'"><div class="thumb-fade"></div></div>`;
+      // small colored dots for each account with a video
+      html += `<div style="position:absolute;bottom:5px;left:5px;display:flex;gap:3px;z-index:3">`;
+      acctVideos.forEach(e => { html += `<div style="width:7px;height:7px;border-radius:50%;background:${e.acct.color};border:1px solid rgba(255,255,255,0.8)"></div>`; });
+      html += `</div>`;
+      html += `<div class="thumb-icon"><i class="ti ti-player-play"></i></div>`;
+    } else if (acctVideos.length) {
+      html += `<div style="position:absolute;bottom:5px;left:5px;display:flex;gap:3px;z-index:3">`;
+      acctVideos.forEach(e => { html += `<div style="width:7px;height:7px;border-radius:50%;background:${e.acct.color}"></div>`; });
+      html += `</div>`;
+      html += `<div class="thumb-icon"><i class="ti ti-video"></i></div>`;
+    } else {
+      html += `<div class="add-icon"><i class="ti ti-plus"></i></div>`;
+    }
+    html += `</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function openCalDay(d) {
+  // Show picker: which account to add/view for this day
+  const acctVideos = state.accounts.map(a => {
+    const k = key(a.id, curYear, curMonth, d);
+    return { acct: a, k, v: state.videos[k] || null };
+  });
+  const dateLabel = `${MONTHS[curMonth]} ${d}, ${curYear}`;
+  let html = `
+    <div class="modal-header">
+      <span class="modal-title">${dateLabel}</span>
+      <button class="close-btn" onclick="closeModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#888;margin-bottom:14px">Select an account to add or view a video:</p>`;
+  acctVideos.forEach(({ acct, k, v }) => {
+    const cover = v ? getCover(v) : null;
+    html += `<div onclick="v_${k.replace(/[^a-z0-9]/gi,'_')}()" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:0.5px solid #eee;border-radius:10px;cursor:pointer;margin-bottom:8px;transition:background 0.12s" onmouseover="this.style.background='#f7f6ff'" onmouseout="this.style.background='#fff'">`;
+    html += `<div style="width:40px;height:40px;border-radius:8px;overflow:hidden;background:${acct.color};flex-shrink:0;display:flex;align-items:center;justify-content:center;">`;
+    if (cover) html += `<img src="${cover}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`;
+    else html += `<i class="ti ti-${v ? 'video' : 'plus'}" style="color:#fff;font-size:18px"></i>`;
+    html += `</div>`;
+    html += `<div style="flex:1"><div style="font-size:14px;font-weight:600">${escHtml(acct.name)}</div><div style="font-size:12px;color:#aaa">${v ? escHtml(v.title || 'Video added') : 'No video yet'}</div></div>`;
+    html += `<i class="ti ti-chevron-right" style="color:#ccc;font-size:16px"></i>`;
+    html += `</div>`;
+  });
+  html += `</div>`;
+  document.getElementById('modal-box').innerHTML = html;
+  document.getElementById('modal').style.display = 'flex';
+
+  // Attach click handlers dynamically
+  acctVideos.forEach(({ acct, k, v }) => {
+    const safeName = `v_${k.replace(/[^a-z0-9]/gi,'_')}`;
+    window[safeName] = () => {
+      if (v) showView(k, d, v, acct);
+      else showEdit(k, d, acct);
+    };
+  });
+}
+
+/* ── Instagram grid ── */
+function renderIG() {
+  const wrap = document.getElementById('accounts-grid');
+
+  let html = '';
+  state.accounts.forEach((acct, idx) => {
+    // collect ALL entries for this account across all time, newest first
+    let entries = Object.entries(state.videos)
+      .filter(([k]) => k.startsWith(acct.id + '::'))
+      .map(([k, v]) => {
+        const datePart = k.split('::')[1];
+        const [y, m, d] = datePart.split('-').map(Number);
+        return { k, y, m, d, v };
+      })
+      .sort((a, b) => {
+        // sort descending: newest first
+        if (b.y !== a.y) return b.y - a.y;
+        if (b.m !== a.m) return b.m - a.m;
+        return b.d - a.d;
+      });
+
+    const count = entries.length;
+    const initials = acct.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+    html += `<div class="account-col">`;
+    html += `<div class="account-header">
+      <div class="account-header-top">
+        <div style="display:flex;align-items:center;gap:8px;flex:1">
+          <div class="account-avatar" style="background:${acct.color}">${initials}</div>
+          <div class="account-info">
+            <div class="account-name">${escHtml(acct.name)}</div>
+            <div class="account-handle">${escHtml(acct.handle)}</div>
+          </div>
+        </div>
+        <button class="account-settings-btn" onclick="showAccountSettings(${idx})" title="Edit account"><i class="ti ti-settings"></i></button>
+      </div>
+      <div class="account-stats">
+        <span class="account-stat"><strong>${count}</strong> video${count!==1?'s':''} total</span>
+      </div>
+    </div>`;
+
+    html += `<div class="mini-ig-grid">`;
+    if (entries.length === 0) {
+      html += `<div class="mini-empty-state" style="grid-column:1/-1"><i class="ti ti-brand-instagram"></i>No videos yet</div>`;
+    } else {
+      entries.forEach(({ k, y, m, d, v }) => {
+        const cover = getCover(v);
+        const dateLabel = `${d} ${MONTHS_SHORT[m-1]} ${y}`;
+        html += `<div class="mini-cell" onclick="showView('${k}',${d},null,'${acct.id}')" title="${escAttr(v.title||dateLabel)}">`;
+        if (cover) html += `<img src="${cover}" alt="" onerror="this.style.display='none'">`;
+        else html += `<div class="mini-no-cover"><i class="ti ti-video"></i></div>`;
+        html += `<span class="mini-date">${d} ${MONTHS_SHORT[m-1]}</span>`;
+        html += `<div class="mini-hover"><i class="ti ti-player-play"></i></div>`;
+        html += `</div>`;
+      });
+    }
+    html += `</div></div>`;
+  });
+  wrap.innerHTML = html;
+}
+
+function openCalDayForAcct(acctId, y, m) {
+  // switch to calendar
+  switchTab('calendar');
+  curYear = y; curMonth = m;
+  render();
+}
+
+/* ── View modal ── */
+function showView(k, d, v, acctOrId) {
+  // acctOrId can be an account object or an id string
+  let acct;
+  if (typeof acctOrId === 'string') {
+    acct = state.accounts.find(a => a.id === acctOrId);
+  } else {
+    acct = acctOrId;
+  }
+  if (!v) v = state.videos[k];
+  if (!v) { showEdit(k, d, acct); return; }
+
+  const parts = k.split('::')[1].split('-');
+  const dateLabel = `${MONTHS[parseInt(parts[1])-1]} ${parseInt(parts[2])}, ${parts[0]}`;
+  const cover = getCover(v);
+
+  document.getElementById('modal-box').innerHTML = `
+    <div class="modal-header">
+      <span class="modal-title">${dateLabel}</span>
+      <button class="close-btn" onclick="closeModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      ${acct ? `<div class="acct-badge" style="background:${acct.color}22;color:${acct.color}"><i class="ti ti-brand-instagram" style="font-size:12px"></i>${escHtml(acct.name)}</div>` : ''}
+      <div class="cover-box">
+        ${cover ? `<img class="cover-img" src="${cover}" alt="Cover" onerror="this.style.display='none'">` : `<div class="cover-placeholder"><i class="ti ti-video"></i><span>No cover image</span></div>`}
+        <div class="play-btn-overlay" onclick="window.open('${escAttr(v.url)}','_blank')" title="Open video">
+          <div class="play-circle"><i class="ti ti-player-play"></i></div>
+        </div>
+      </div>
+      <div class="view-header">
+        <span class="view-title">${escHtml(v.title || 'Untitled video')}</span>
+        <button class="edit-link" onclick="showEdit('${k}',${d},null,'${acct ? acct.id : ''}')"><i class="ti ti-edit"></i> Edit</button>
+      </div>
+      ${v.caption ? `<p class="caption-display">${escHtml(v.caption)}</p>` : ''}
+      <a class="video-url-chip" href="${escAttr(v.url)}" target="_blank" rel="noopener">
+        <i class="ti ti-external-link" style="flex-shrink:0"></i><span>${escHtml(v.url)}</span>
+      </a>
+    </div>`;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+/* ── Edit modal ── */
+let editingKey = null;
+let pendingCoverBase64 = null;
+
+function showEdit(k, d, acct, acctId) {
+  if (!acct && acctId) acct = state.accounts.find(a => a.id === acctId);
+  editingKey = k;
+  pendingCoverBase64 = null;
+  const v = state.videos[k] || {};
+  const cover = getCover(v);
+  const parts = k.split('::')[1].split('-');
+  const dateLabel = `${MONTHS[parseInt(parts[1])-1]} ${parseInt(parts[2])}, ${parts[0]}`;
+
+  document.getElementById('modal-box').innerHTML = `
+    <div class="modal-header">
+      <span class="modal-title">${dateLabel}</span>
+      <button class="close-btn" onclick="closeModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      ${acct ? `<div class="acct-badge" style="background:${acct.color}22;color:${acct.color};margin-bottom:12px"><i class="ti ti-brand-instagram" style="font-size:12px"></i>${escHtml(acct.name)}</div>` : ''}
+      <span class="section-label">Cover image</span>
+      <div class="cover-upload-area ${cover ? 'has-img' : ''}" id="cover-drop" onclick="triggerCoverPick()" title="Click to upload">
+        ${cover ? `<img id="cover-preview-img" src="${cover}" alt="">` : '<img id="cover-preview-img" style="display:none">'}
+        <div class="upload-label"><i class="ti ti-photo-up"></i><span>${cover ? 'Change cover' : 'Upload cover image'}</span></div>
+      </div>
+      <div class="cover-url-row">
+        <input type="text" id="inp-cover-url" placeholder="Or paste image URL..." value="${escAttr(v.coverUrl||'')}">
+        <button onclick="applyCoverUrl()"><i class="ti ti-link"></i> Use URL</button>
+      </div>
+      <hr class="divider">
+      <span class="section-label">Video</span>
+      <div class="field-group">
+        <label class="field-label">Video link <span style="color:#bbb">(CapCut, YouTube, Vimeo, any URL)</span></label>
+        <input type="text" id="inp-url" placeholder="https://..." value="${escAttr(v.url||'')}">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Title</label>
+        <input type="text" id="inp-title" placeholder="Video title..." value="${escAttr(v.title||'')}">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Caption</label>
+        <textarea id="inp-caption" placeholder="Add a note or description...">${escHtml(v.caption||'')}</textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      ${v.url ? `<button class="btn-danger" onclick="deleteVideo('${k}')"><i class="ti ti-trash" style="font-size:14px"></i> Remove</button>` : ''}
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveVideo('${k}')">Save</button>
+    </div>`;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function triggerCoverPick() { document.getElementById('cover-file-input').value=''; document.getElementById('cover-file-input').click(); }
+
+function handleCoverFile(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const original = new Image();
+    original.onload = () => {
+      const MAX = 1013; // 3:4 ratio target width
+      let w = original.width, h = original.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(original, 0, 0, w, h);
+      let quality = 0.7;
+      let dataUrl = canvas.toDataURL('image/jpeg', quality);
+      while (dataUrl.length > 200000 && quality > 0.2) {
+        quality -= 0.1;
+        dataUrl = canvas.toDataURL('image/jpeg', quality);
+      }
+      pendingCoverBase64 = dataUrl;
+      const img = document.getElementById('cover-preview-img');
+      const drop = document.getElementById('cover-drop');
+      if (img && drop) {
+        img.src = pendingCoverBase64;
+        img.style.display = 'block';
+        drop.classList.add('has-img');
+        document.getElementById('inp-cover-url').value = '';
+      }
+    };
+    original.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function applyCoverUrl() {
+  const url = document.getElementById('inp-cover-url').value.trim(); if (!url) return;
+  pendingCoverBase64 = null;
+  const img = document.getElementById('cover-preview-img');
+  const drop = document.getElementById('cover-drop');
+  img.src = url; img.style.display='block';
+  img.onerror = () => { img.style.display='none'; drop.classList.remove('has-img'); alert('Could not load image from that URL.'); };
+  drop.classList.add('has-img');
+}
+
+function saveVideo(k) {
+  const url = document.getElementById('inp-url').value.trim();
+  const title = document.getElementById('inp-title').value.trim();
+  const caption = document.getElementById('inp-caption').value.trim();
+  const coverUrlInput = document.getElementById('inp-cover-url').value.trim();
+  if (!url) { closeModal(); return; }
+  const existing = state.videos[k] || {};
+  const entry = { url, title, caption };
+  if (pendingCoverBase64) entry.coverBase64 = pendingCoverBase64;
+  else if (coverUrlInput) entry.coverUrl = coverUrlInput;
+  else { if (existing.coverBase64) entry.coverBase64 = existing.coverBase64; if (existing.coverUrl) entry.coverUrl = existing.coverUrl; }
+  state.videos[k] = entry;
+  save(); closeModal(); render();
+  if (currentTab === 'instagram') renderIG();
+}
+
+function deleteVideo(k) {
+  delete state.videos[k];
+  save(); closeModal(); render();
+  if (currentTab === 'instagram') renderIG();
+}
+
+/* ── Account settings modal ── */
+function showAccountSettings(idx) {
+  const acct = state.accounts[idx];
+  document.getElementById('modal-box').innerHTML = `
+    <div class="modal-header">
+      <span class="modal-title">Edit account</span>
+      <button class="close-btn" onclick="closeModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="field-group">
+        <label class="field-label">Restaurant name</label>
+        <input type="text" id="as-name" value="${escAttr(acct.name)}" placeholder="Restaurant name">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Instagram handle</label>
+        <input type="text" id="as-handle" value="${escAttr(acct.handle)}" placeholder="@handle">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Colour</label>
+        <div class="color-swatches" id="color-swatches">
+          ${COLORS.map((c,i) => `<div class="swatch${acct.color===c?' selected':''}" style="background:${c}" onclick="selectSwatch(this,'${c}')" title="${COLOR_NAMES[i]}"></div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveAccountSettings(${idx})">Save</button>
+    </div>`;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function selectSwatch(el, color) {
+  document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  el.dataset.color = color;
+}
+
+function saveAccountSettings(idx) {
+  const name = document.getElementById('as-name').value.trim() || state.accounts[idx].name;
+  const handle = document.getElementById('as-handle').value.trim() || state.accounts[idx].handle;
+  const selected = document.querySelector('.swatch.selected');
+  const color = selected ? (selected.dataset.color || selected.style.background) : state.accounts[idx].color;
+  state.accounts[idx] = { ...state.accounts[idx], name, handle, color };
+  save(); closeModal(); render();
+  if (currentTab === 'instagram') renderIG();
+}
+
+function closeModal() { document.getElementById('modal').style.display='none'; editingKey=null; pendingCoverBase64=null; }
+function handleOverlayClick(e) { if (e.target===document.getElementById('modal')) closeModal(); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+/* ── Backup & Restore ── */
+function exportData() {
+  const json = JSON.stringify(state, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `video-calendar-backup-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if (!imported.accounts || !imported.videos) throw new Error('Invalid backup file');
+      if (!confirm('This will replace all current data with the backup. Continue?')) return;
+      state = imported;
+      save();
+      render();
+      if (currentTab === 'instagram') renderIG();
+      alert('Backup restored successfully!');
+    } catch(err) {
+      alert('Could not read backup file. Make sure it is a valid backup.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+render();
+</script>
+</body>
+</html>
