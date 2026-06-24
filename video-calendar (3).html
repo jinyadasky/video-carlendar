@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Video Calendar 2</title>
+<title>Video Calendar</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -217,16 +217,16 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const DB_KEY = 'vc-state-2'; // file 2 key — separate from file 1
+const DB_KEY = 'vc-state-1'; // file 1 key
 
 // State
 let state = { accounts: [], videos: {} };
 let saveTimer = null;
 
 const defaultAccounts = [
-  { id: 'acct4', name: 'Restaurant 4', handle: '@restaurant4', color: '#E8944A' },
-  { id: 'acct5', name: 'Restaurant 5', handle: '@restaurant5', color: '#2196A8' },
-  { id: 'acct6', name: 'Restaurant 6', handle: '@restaurant6', color: '#9C27B0' },
+  { id: 'acct1', name: 'Restaurant 1', handle: '@restaurant1', color: '#E8534A' },
+  { id: 'acct2', name: 'Restaurant 2', handle: '@restaurant2', color: '#4CAF7D' },
+  { id: 'acct3', name: 'Restaurant 3', handle: '@5344C0', color: '#5344C0' },
 ];
 
 function showSyncStatus(msg, color) {
@@ -237,26 +237,13 @@ function showSyncStatus(msg, color) {
 }
 
 function save() {
-  // Save full data (including base64 images) to localStorage
-  try { localStorage.setItem('vc-state-v3', JSON.stringify(state)); } catch(e) {}
-  // Save to Firebase without base64 images (too large)
+  // Save to localStorage as immediate backup
+  try { localStorage.setItem('vc-state-v2', JSON.stringify(state)); } catch(e) {}
+  // Debounce Firebase save by 1 second
   showSyncStatus('Saving...', '#E8944A');
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    const firebaseState = {
-      accounts: state.accounts,
-      videos: {}
-    };
-    Object.entries(state.videos).forEach(([k, v]) => {
-      firebaseState.videos[k] = {
-        url: v.url || '',
-        title: v.title || '',
-        caption: v.caption || '',
-        coverUrl: v.coverUrl || ''
-        // coverBase64 excluded — stored in localStorage only
-      };
-    });
-    db.ref(DB_KEY).set(firebaseState)
+    db.ref(DB_KEY).set(state)
       .then(() => showSyncStatus('Saved ✓', '#4CAF7D'))
       .catch(e => showSyncStatus('Save failed', '#E8534A'));
   }, 1000);
@@ -269,8 +256,9 @@ db.ref(DB_KEY).once('value').then(snapshot => {
   if (data && data.accounts) {
     state = data;
   } else {
+    // Try localStorage fallback
     try {
-      const local = localStorage.getItem('vc-state-v3');
+      const local = localStorage.getItem('vc-state-v2');
       if (local) state = JSON.parse(local);
     } catch(e) {}
   }
@@ -292,8 +280,9 @@ db.ref(DB_KEY).once('value').then(snapshot => {
   render();
   if (currentTab === 'instagram') renderIG();
 }).catch(e => {
+  // Fallback to localStorage if Firebase fails
   try {
-    const local = localStorage.getItem('vc-state-v3');
+    const local = localStorage.getItem('vc-state-v2');
     if (local) state = JSON.parse(local);
   } catch(err) {}
   if (!state.accounts || state.accounts.length === 0) state.accounts = defaultAccounts;
@@ -721,7 +710,7 @@ function importData(e) {
     try {
       const imported = JSON.parse(ev.target.result);
       if (!imported.accounts || !imported.videos) throw new Error('Invalid backup file');
-      if (!confirm('This will replace all current data with the backup. Continue?')) return;
+      if (!confirm(`This will replace all your current data with the backup. Continue?`)) return;
       state = imported;
       save();
       render();
